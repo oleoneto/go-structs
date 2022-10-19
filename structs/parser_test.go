@@ -32,9 +32,14 @@ func Test_GetAllAttributes(t *testing.T) {
 		Articles []Article `json:"articles"`
 	}
 
-	type Files struct {
+	type File struct {
 		Dir   *string   `json:"dir"`
 		Paths *[]string `json:"paths"`
+	}
+
+	type SSD struct {
+		Owner Person `json:"owner"`
+		Files []File `json:"files"`
 	}
 
 	var strvalue string
@@ -46,6 +51,20 @@ func Test_GetAllAttributes(t *testing.T) {
 	}
 
 	examples := []Expectation{
+		{
+			Name: "SSD - 1",
+			Model: SSD{
+				Owner: Person{},
+			},
+			Attributes: []string{
+				"owner",
+				"owner.name",
+				"owner.emails",
+				"owner.IsActive",
+				"owner.phones",
+				"files",
+			},
+		},
 		{
 			Name: "Person - 1",
 			Model: Person{
@@ -220,7 +239,7 @@ func Test_GetAllAttributes(t *testing.T) {
 		},
 		{
 			Name: "Files - 1",
-			Model: Files{
+			Model: File{
 				Dir: nil,
 				Paths: &[]string{
 					"/home/users/someone/downloads",
@@ -238,7 +257,7 @@ func Test_GetAllAttributes(t *testing.T) {
 		},
 		{
 			Name: "Files - 2",
-			Model: Files{
+			Model: File{
 				Dir:   nil,
 				Paths: &[]string{},
 			},
@@ -249,7 +268,7 @@ func Test_GetAllAttributes(t *testing.T) {
 		},
 		{
 			Name: "Files - 3",
-			Model: Files{
+			Model: File{
 				Dir:   &strvalue,
 				Paths: &[]string{},
 			},
@@ -260,7 +279,7 @@ func Test_GetAllAttributes(t *testing.T) {
 		},
 		{
 			Name: "Files - 4",
-			Model: Files{
+			Model: File{
 				Dir:   &strvalue,
 				Paths: &[]string{strvalue},
 			},
