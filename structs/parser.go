@@ -155,6 +155,9 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 
 		// Check if the field needs further processing.
 		switch value.Kind() {
+		case reflect.Struct:
+			nestedAttributes := getAttributes(value, append(parents, sa), filterTags, ignoredFields, -1)
+			attributes = append(attributes, nestedAttributes...)
 		case reflect.Slice, reflect.Array:
 			isListOfPrimitives := false
 			newParents := append(parents, sa)

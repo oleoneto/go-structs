@@ -40,7 +40,7 @@ func (sa *StructAttribute) FullName() (name string) {
 	scope := sa.Parents[len(sa.Parents)-1].FullName()
 
 	// Adds the array notation to the slice/array field
-	if sa.ListPosition != -1 {
+	if sa.ListPosition >= 0 {
 		scope = strings.Join([]string{scope, fmt.Sprint("[", sa.ListPosition, "]")}, "")
 	}
 
