@@ -95,7 +95,7 @@ func GetTagValue(sf reflect.StructField, tagName string) string {
 //		Emails []string `json:"emails"`
 // 	}
 //
-//	You can obtain the `orm` tag the following way:
+// You can obtain the `orm` tag the following way:
 //	GetTagValues(name_sf, "orm") // -> "pk=name,noupdate,required,pk"
 func GetTagValues(sf reflect.StructField, tagName string) []string {
 	r, exists := sf.Tag.Lookup(tagName)
@@ -107,10 +107,94 @@ func GetTagValues(sf reflect.StructField, tagName string) []string {
 	return []string{}
 }
 
+// Get all the tags of the given struct field.
+//
+// Usage:
+//
+// Imagine you have the struct:
+//	type Person struct {
+//		Name string `json:"name,omitempty" orm:"pk=name"`
+//		Emails []string `json:"emails"`
+//	}
+//
+// You can get all the tags set on the name field:
+// 	GetTags(name_sf) // -> {json: [name, omitempty], orm: [pk=name]}
+func GetTags(sf reflect.StructField) map[string][]string {
+	tags := make(map[string][]string)
+
+	for _, tag := range strings.Split(string(sf.Tag), " ") {
+		t := strings.Split(tag, ":")
+		name := t[0]
+		values := t[1]
+
+		tags[name] = strings.Split(values, ",")
+	}
+
+	return tags
+}
+
+// Returns whether or not a struct field contains the provided values in the specified tag.
+//
+// Usage:
+//
+// Imagine you have the struct:
+// 	type Person struct {
+//		Name           string   `json:"name,omitempty" orm:"pk=name,noupdate,required,pk" validate:"uuid"`
+//		PrimaryEmail   string   `json:"email1" validate:"email"`
+//		SecondaryEmail []string `json:"email2" validate:"email"`
+// 	}
+//
+// Does the field `Name` have the value `email` in the `validate` tag?
+//	TagConstainsValues(name_sf, "validate", []string{"email"}) // -> false
+//
+// Does the field `PrimaryEmail` has the value `email` in the `validate` tag?
+//	TagConstainsValues(primary_email_sf, "validate", []string{"email"}) // -> true
+//
+// IMPORTANT:
+//
+// Values will only match if they are the same. If you pass only a substring, the method will return false.
+//
+// For example:
+//	TagConstainsValues(primary_email_sf, "json", []string{"email"}) // -> false
+func TagConstainsValues(field reflect.StructField, tag string, values []string) bool {
+	if tag, ok := field.Tag.Lookup(tag); ok {
+		for _, value := range values {
+			if Contains(strings.Split(tag, ","), value) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Get a list of all the struct fields that contain the provided values in the specified tag.
+//
+// Usage:
+//
+// Imagine you have the struct:
+//	type Person struct {
+//		Name           string   `json:"name,omitempty" orm:"pk=name,noupdate" validate:"uuid"`
+//		PrimaryEmail   string   `json:"email1" validate:"email"`
+//		SecondaryEmail []string `json:"email2" validate:"email"`
+//	}
+//
+// You can get all the fields that include the value `email` in the `validate` tag:
+//	MatchingFields(Person{}, "validate", []string{"email"}) // -> [email1, email2]
+func MatchingFields(v any, tag string, requiredKeywords []string) (result []string) {
+	rv := reflect.ValueOf(v)
+	parents := []string{}
+	return matchingFields(rv, parents, tag, requiredKeywords)
+}
+
+// -------------------------------------------------------
+// -------------------------------------------------------
+// -------------------------------------------------------
+
 // Fetches all the fields of the given struct.
 func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, ignoredFields []string, currentIndex int) (attributes []StructAttribute) {
 	if rv.Kind() == reflect.Pointer {
-		rv, _ = pointerElement(rv)
+		rv, _ = PointerElement(rv)
 	}
 
 	if rv.Kind() != reflect.Struct {
@@ -120,7 +204,7 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 	for position := 0; position < rv.NumField(); position++ {
 		// Concrete value type of the field at this position
 		value := rv.Field(position)
-		value, _ = pointerElement(value)
+		value, _ = PointerElement(value)
 
 		// Struct field definition
 		rsf := rv.Type().Field(position)
@@ -146,7 +230,7 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 			_, shouldBeIncluded = sa.Field.Tag.Lookup(tag)
 		}
 
-		if !shouldBeIncluded || contains(ignoredFields, rsf.Name) {
+		if !shouldBeIncluded || Contains(ignoredFields, rsf.Name) {
 			continue
 		}
 
@@ -208,4 +292,35 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 	}
 
 	return attributes
+}
+
+func matchingFields(rv reflect.Value, parents []string, tag string, requiredKeywords []string) (fields []string) {
+	if rv.Kind() == reflect.Pointer {
+		rv, _ = PointerElement(rv)
+	}
+
+	if rv.Kind() != reflect.Struct {
+		return fields
+	}
+
+	for position := 0; position < rv.NumField(); position++ {
+		f := rv.Type().Field(position)
+		value := rv.Field(position)
+
+		prefix := strings.Join(parents, ".")
+		fieldName := strings.TrimPrefix(strings.Join([]string{prefix, GetTagValue(f, "json")}, "."), ".")
+		if TagConstainsValues(f, tag, requiredKeywords) {
+			fields = append(fields, fieldName)
+		}
+
+		switch value.Kind() {
+		case reflect.Array, reflect.Slice:
+			newParents := append(parents, fieldName)
+
+			t := reflect.New(value.Type().Elem())
+			fields = append(fields, matchingFields(t, newParents, tag, requiredKeywords)...)
+		}
+	}
+
+	return fields
 }

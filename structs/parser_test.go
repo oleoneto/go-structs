@@ -406,3 +406,190 @@ func Test_GetTagValues(t *testing.T) {
 		t.Errorf(`expected values to be empty, but got %v`, eValues)
 	}
 }
+
+func Test_GetTags(t *testing.T) {
+	var field reflect.StructField = reflect.StructField{
+		Tag: `json:"id,omitempty" db:"_id"`,
+	}
+
+	tags := GetTags(field)
+
+	if len(tags["json"]) != 2 {
+		t.Errorf(`expected different values for "json" tag, but got %v`, tags["json"])
+	}
+
+	if len(tags["db"]) != 1 {
+		t.Errorf(`expected different value "db" tag, but got %v`, tags["db"])
+	}
+}
+
+func Test_TagContainsValues(t *testing.T) {
+	type Expectation struct {
+		Name   string
+		Field  reflect.StructField
+		Tag    string
+		Values []string
+		Result bool
+	}
+
+	tests := []Expectation{
+		{
+			Name:   "Nullable field - 1",
+			Field:  reflect.StructField{Name: "id", Tag: `json:"id,omitempty"`},
+			Tag:    "json",
+			Values: []string{"omitempty"},
+			Result: true,
+		},
+		{
+			Name:   "Nullable field - 2",
+			Field:  reflect.StructField{Name: "id", Tag: `json:"id,omitempty"`},
+			Tag:    "json",
+			Values: []string{"arroz"},
+			Result: false,
+		},
+		{
+			Name:   "Email - 1",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,contains(@dock.tech)"`},
+			Tag:    "json",
+			Values: []string{"omitempty"},
+			Result: false,
+		},
+		{
+			Name:   "Email - 2",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,contains(@dock.tech)"`},
+			Tag:    "validate",
+			Values: []string{"omitempty"},
+			Result: false,
+		},
+		{
+			Name:   "Email - 3",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,contains(@dock.tech)"`},
+			Tag:    "validate",
+			Values: []string{"email"},
+			Result: true,
+		},
+		{
+			Name:   "Email - 4",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,matches(@dock.tech)"`},
+			Tag:    "validate",
+			Values: []string{"@dock.tech"},
+			Result: false,
+		},
+		{
+			Name:   "Email - 4.1",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,matches(@dock.tech)"`},
+			Tag:    "validate",
+			Values: []string{"@dock.tech"},
+			Result: false,
+		},
+		{
+			Name:   "Email - 5",
+			Field:  reflect.StructField{Name: "email", Tag: `validate:"email,matches(@dock.tech)"`},
+			Tag:    "validate",
+			Values: []string{"matches(@dock.tech)"},
+			Result: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			res := TagConstainsValues(test.Field, test.Tag, test.Values)
+
+			if res != test.Result {
+				t.Errorf(`expected result to be %v, but got %v`, test.Result, res)
+			}
+		})
+	}
+}
+
+func Test_MatchingFields(t *testing.T) {
+	type Expectation struct {
+		Name   string
+		Model  any
+		Tag    string
+		Values []string
+		Fields []string
+	}
+
+	type Person struct {
+		Name           string   `json:"name,omitempty" orm:"pk=name,noupdate" check:"uuid"`
+		PrimaryEmail   string   `json:"email1" check:"email,primary"`
+		SecondaryEmail []string `json:"email2" check:"email,backup"`
+	}
+
+	tests := []Expectation{
+		{
+			Name:   "person - 1",
+			Model:  Person{},
+			Tag:    "json",
+			Values: []string{"omitempty"},
+			Fields: []string{"name"},
+		},
+		{
+			Name:   "person - 2",
+			Model:  Person{},
+			Tag:    "check",
+			Values: []string{"email"},
+			Fields: []string{"email1", "email2"},
+		},
+		{
+			Name:   "person - 3",
+			Model:  Person{},
+			Tag:    "check",
+			Values: []string{"primary"},
+			Fields: []string{"email1"},
+		},
+		{
+			Name:   "person - 4",
+			Model:  Person{},
+			Tag:    "check",
+			Values: []string{"backup"},
+			Fields: []string{"email2"},
+		},
+		{
+			Name:   "person - 5",
+			Model:  Person{},
+			Tag:    "json",
+			Values: []string{"email"},
+			Fields: []string{},
+		},
+		{
+			Name:   "person - 5.1",
+			Model:  Person{},
+			Tag:    "json",
+			Values: []string{"email"},
+			Fields: []string{},
+		},
+		{
+			Name:   "person - 6",
+			Model:  Person{},
+			Tag:    "json",
+			Values: []string{"email1"},
+			Fields: []string{"email1"},
+		},
+		{
+			Name:   "person - 7",
+			Model:  Person{},
+			Tag:    "orm",
+			Values: []string{"email"},
+			Fields: []string{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			fields := MatchingFields(test.Model, test.Tag, test.Values)
+
+			if len(fields) != len(test.Fields) {
+				t.Errorf(`expected %d fields, but got %d`, len(test.Fields), len(fields))
+				return
+			}
+
+			for index, field := range fields {
+				if field != test.Fields[index] {
+					t.Errorf(`expected field to be %v, but got %v instead`, test.Fields[index], field)
+				}
+			}
+		})
+	}
+}
