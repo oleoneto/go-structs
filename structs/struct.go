@@ -53,3 +53,16 @@ func (sa *StructAttribute) FullName() (name string) {
 	// Ensures field name is never prefixed by a dot (.)
 	return strings.TrimSuffix(strings.TrimPrefix(fullName, "."), ".")
 }
+
+func (sa *StructAttribute) SkipsPastLastChild() int {
+	if len(sa.Children) == 0 {
+		return 0
+	}
+
+	n := 1 + len(sa.Children)
+	for _, child := range sa.Children {
+		n += 1 + child.SkipsPastLastChild()
+	}
+
+	return n
+}

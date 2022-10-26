@@ -9,8 +9,8 @@ import (
 //
 // Example:
 //
-//	contains([]string{"hello", "world", "!"}, "world") // -> true
-func contains[T comparable](collection []T, element T) bool {
+//	Contains([]string{"hello", "world", "!"}, "world") // -> true
+func Contains[T comparable](collection []T, element T) bool {
 	for _, item := range collection {
 		if item == element {
 			return true
@@ -20,9 +20,24 @@ func contains[T comparable](collection []T, element T) bool {
 	return false
 }
 
+// Applies a `transformer` function to every element in a list.
+//
+// Usage:
+//
+//	Map([]int{3, 4}, func(index, n int) int { return n * n }) // -> [9, 16]
+func Map[A any, B any](collection []A, transformFunc func(int, A) B) []B {
+	result := make([]B, len(collection))
+
+	for index, item := range collection {
+		result[index] = transformFunc(index, item)
+	}
+
+	return result
+}
+
 // MARK: - Reflection Helpers
 
-func pointerElement(rv reflect.Value) (reflect.Value, error) {
+func PointerElement(rv reflect.Value) (reflect.Value, error) {
 	el := rv
 
 	for el.Kind() == reflect.Pointer {
