@@ -140,7 +140,6 @@ var Errors = map[string]string{
 }
 
 type ValidationOptions struct {
-	Payload   map[string]any
 	Ignore    []string
 	SkipRules []string
 }
