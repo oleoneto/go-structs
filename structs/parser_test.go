@@ -15,7 +15,7 @@ type Author struct {
 
 type Person struct {
 	Name         *string  `json:"name" db:"name"`
-	Emails       []string `json:"emails" db:"emails"`
+	Emails       []string `json:"emails" db:"emails" validate:"min=1,max=3"`
 	IsActive     *bool
 	PhoneNumbers []string `json:"phones"`
 }
@@ -407,6 +407,28 @@ func Test_GetTagValues(t *testing.T) {
 	}
 }
 
+func Test_GetTag(t *testing.T) {
+	var field reflect.StructField = reflect.StructField{
+		Tag: `json:"id,omitempty" db:"_id" validate:"min=1,max=255,required"`,
+	}
+
+	tag := GetTag(field, "validate")
+
+	if len(tag) != 3 {
+		t.Errorf(`expected %v values for "validate" tag, but got %v`, 3, len(tag))
+	}
+
+	if tag["min"] != "1" || tag["max"] != "255" || tag["required"] != "" {
+		t.Errorf(`expected a different value for tag attribute`)
+	}
+
+	tag = GetTag(field, "unknown")
+
+	if len(tag) != 0 {
+		t.Errorf(`expected %v values for "unknown" tag, but got %v`, 0, tag)
+	}
+}
+
 func Test_GetTags(t *testing.T) {
 	var field reflect.StructField = reflect.StructField{
 		Tag: `json:"id,omitempty" db:"_id"`,
@@ -589,6 +611,152 @@ func Test_MatchingFields(t *testing.T) {
 				if field != test.Fields[index] {
 					t.Errorf(`expected field to be %v, but got %v instead`, test.Fields[index], field)
 				}
+			}
+		})
+	}
+}
+
+func Test_SetValuesFromMap(t *testing.T) {
+	type args struct {
+		model  any
+		values map[string]any
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want any
+	}{
+		{
+			name: "example - 1",
+			args: args{
+				model:  &Person{},
+				values: map[string]any{"name": "Leonardo", "IsActive": true, "emails": []string{"leo@example.com"}},
+			},
+			want: &Person{Name: stringPointer("Leonardo"), IsActive: boolPointer(true), Emails: []string{"leo@example.com"}},
+		},
+		{
+			name: "example - 2",
+			args: args{
+				model:  &Person{},
+				values: map[string]any{"name": 45, "IsActive": 32, "emails": []string{"leo@example.com"}},
+			},
+			want: &Person{Name: nil, IsActive: nil, Emails: []string{"leo@example.com"}},
+		},
+		{
+			name: "example - 3",
+			args: args{
+				model:  &Person{},
+				values: map[string]any{"name": "Leonardo", "IsActive": true, "emails": 2},
+			},
+			want: &Person{Name: stringPointer("Leonardo"), IsActive: boolPointer(true), Emails: nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetValuesFromMap(tt.args.model, tt.args.values)
+
+			if !reflect.DeepEqual(tt.args.model, tt.want) {
+				t.Errorf(`expected structs to be equal, but got %v != %v`, tt.args.model, tt.want)
+			}
+		})
+	}
+}
+
+func Test_SetValuesFromBytes(t *testing.T) {
+	type args struct {
+		model  any
+		values []byte
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want any
+	}{
+		{
+			name: "example - 1",
+			args: args{
+				model:  &Person{},
+				values: []byte(`{"name": "Leonardo", "IsActive": true, "emails": ["leo@example.com"]}`),
+			},
+			want: &Person{Name: stringPointer("Leonardo"), IsActive: boolPointer(true), Emails: []string{"leo@example.com"}},
+		},
+		{
+			name: "example - 2",
+			args: args{
+				model:  &Person{},
+				values: []byte(`{"name": 45, "IsActive": 32, "emails": ["leo@example.com"]}`),
+			},
+			want: &Person{Name: nil, IsActive: nil, Emails: []string{"leo@example.com"}},
+		},
+		{
+			name: "example - 3",
+			args: args{
+				model:  &Person{},
+				values: []byte(`{"name": "Leonardo", "IsActive": true, "emails": 2}`),
+			},
+			want: &Person{Name: stringPointer("Leonardo"), IsActive: boolPointer(true), Emails: nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetValuesFromBytes(tt.args.model, tt.args.values)
+
+			if !reflect.DeepEqual(tt.args.model, tt.want) {
+				t.Errorf(`expected structs to be equal, but got %v != %v`, tt.args.model, tt.want)
+			}
+		})
+	}
+}
+
+func Test_RemoveValuesFromTag(t *testing.T) {
+	type args struct {
+		tag        string
+		removeList []string
+		field      reflect.StructField
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "remove 'pk'",
+			args: args{
+				tag:        "orm",
+				removeList: []string{"pk"},
+				field:      reflect.StructField{Tag: `json:"id,omitempty" orm:"pk=1,required"`},
+			},
+			want: `json:"id,omitempty" orm:"required"`,
+		},
+		{
+			name: "remove 'min' and 'max'",
+			args: args{
+				tag:        "check",
+				removeList: []string{"min", "max"},
+				field:      reflect.StructField{Tag: `json:"id,omitempty" check:"min=1,max=255,required"`},
+			},
+			want: `json:"id,omitempty" check:"required"`,
+		},
+		{
+			name: "remove 'required'",
+			args: args{
+				tag:        "check",
+				removeList: []string{"required"},
+				field:      reflect.StructField{Tag: `json:"id,omitempty" check:"min=1,max=255,required"`},
+			},
+			want: `json:"id,omitempty" check:"min=1,max=255"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RemoveValuesFromTag(tt.args.tag, tt.args.removeList, tt.args.field); got != tt.want {
+				t.Errorf("RemoveValuesFromTag() = %v, want %v", got, tt.want)
 			}
 		})
 	}

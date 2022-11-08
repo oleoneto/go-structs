@@ -1,10 +1,30 @@
 package structs
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+)
+
+const (
+	// The literal name of the validation tag as it'll appear in the struct.
+	//
+	// Example:
+	//
+	//	type Resource struct {
+	//		Name string `json:"name" validate:"min=6"`
+	//	}
+	VALIDATION_TAG_KEYWORD string = "validate"
+)
+
+var (
+	// Tag attributes that should be excluded
+	NON_INHERITABLE_TAG_ATTRIBUTES = []string{"max", "min"}
 )
 
 // Fetches all the fields of the given struct instance and returns a flattened list with all of its attributes.
@@ -107,6 +127,28 @@ func GetTagValues(sf reflect.StructField, tagName string) []string {
 	return []string{}
 }
 
+// Get each of the attributes of the given tag.
+func GetTag(sf reflect.StructField, tagName string) map[string]string {
+	values := make(map[string]string, 0)
+
+	if r, exists := sf.Tag.Lookup(tagName); exists {
+		rule := strings.Split(r, ",")
+
+		for _, rl := range rule {
+			t := strings.SplitN(rl, "=", 2)
+
+			if len(t) == 1 {
+				values[t[0]] = ""
+				continue
+			}
+
+			values[t[0]] = t[1]
+		}
+	}
+
+	return values
+}
+
 // Get all the tags of the given struct field.
 //
 // Usage:
@@ -185,6 +227,41 @@ func MatchingFields(v any, tag string, requiredKeywords []string) (result []stri
 	rv := reflect.ValueOf(v)
 	parents := []string{}
 	return matchingFields(rv, parents, tag, requiredKeywords)
+}
+
+func SetValuesFromMap(entity any, values map[string]any) {
+	rv := reflect.ValueOf(entity)
+	attrs := GetAttributes(rv, []string{})
+
+	for _, attr := range attrs {
+		if v, ok := values[attr.FullName()]; ok {
+			if sf := rv.Elem().FieldByName(attr.Field.Name); sf.CanSet() {
+				value := reflect.ValueOf(v)
+
+				switch sf.Type().Kind() {
+				case reflect.Array, reflect.Slice:
+					if value.Kind() != sf.Type().Kind() {
+						delete(values, attr.FullName())
+					}
+				case reflect.Pointer:
+					if value.Kind() != sf.Type().Elem().Kind() {
+						delete(values, attr.FullName())
+					}
+				case reflect.Struct:
+				}
+			}
+		}
+	}
+
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(values)
+	json.NewDecoder(buf).Decode(entity)
+}
+
+func SetValuesFromBytes(entity any, data []byte) {
+	values := map[string]any{}
+	_ = json.Unmarshal(data, &values)
+	SetValuesFromMap(entity, values)
 }
 
 // -------------------------------------------------------
@@ -276,6 +353,10 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 						PkgPath: sa.Field.PkgPath,
 					}
 
+					// Exclude some predefined validation tag attributes
+					childTag := RemoveValuesFromTag(VALIDATION_TAG_KEYWORD, NON_INHERITABLE_TAG_ATTRIBUTES, sa.Field)
+					child.Field.Tag = reflect.StructTag(childTag)
+
 					attributes[len(attributes)-1].Children = append(sa.Children, child)
 					attributes = append(attributes, child)
 					continue
@@ -292,6 +373,20 @@ func getAttributes(rv reflect.Value, parents []StructAttribute, filterTags, igno
 	}
 
 	return attributes
+}
+
+func RemoveValuesFromTag(tag string, removeList []string, field reflect.StructField) string {
+	result := string(field.Tag)
+
+	t := GetTag(field, tag)
+	for _, i := range removeList {
+		if v, ok := t[i]; ok {
+			pattern := regexp.MustCompile(fmt.Sprintf(`,?%v=?%v?,?`, i, v))
+			result = pattern.ReplaceAllString(result, "")
+		}
+	}
+
+	return result
 }
 
 func matchingFields(rv reflect.Value, parents []string, tag string, requiredKeywords []string) (fields []string) {
