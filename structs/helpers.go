@@ -35,6 +35,26 @@ func Map[A any, B any](collection []A, transformFunc func(int, A) B) []B {
 	return result
 }
 
+// Filters a collection and returns only the elements
+// that match the provided `inclusionTest`.
+//
+// Example:
+//
+// Filter and return all even numbers:
+//
+// 	Filter([]int{16, 9, 25}, func(i, n int) bool { return n%2 == 0 }) // -> [16]
+func Filter[T any](collection []T, inclusionTest func(int, T) bool) []T {
+	result := make([]T, 0)
+
+	for index, item := range collection {
+		if inclusionTest(index, item) {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
 // MARK: - Reflection Helpers
 
 func PointerElement(rv reflect.Value) (reflect.Value, error) {

@@ -66,10 +66,65 @@ func Test_Map(t *testing.T) {
 			want: []int{2, 4, 6},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Map(tt.args.collection, tt.args.transformFunc); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Map() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_Filter(t *testing.T) {
+	type args struct {
+		collection    []int
+		inclusionTest func(int, int) bool
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
+		{
+			name: "even numbers - 1",
+			args: args{
+				collection:    []int{3, 5, 7},
+				inclusionTest: func(index, n int) bool { return n%2 == 0 },
+			},
+			want: []int{},
+		},
+		{
+			name: "even numbers - 2",
+			args: args{
+				collection:    []int{3, 5, 7, 8, 9, 12},
+				inclusionTest: func(index, n int) bool { return n%2 == 0 },
+			},
+			want: []int{8, 12},
+		},
+		{
+			name: "odd numbers - 1",
+			args: args{
+				collection:    []int{3, 5, 7},
+				inclusionTest: func(index, n int) bool { return n%2 != 0 },
+			},
+			want: []int{3, 5, 7},
+		},
+		{
+			name: "odd numbers - 2",
+			args: args{
+				collection:    []int{3, 5, 7, 8, 9, 12},
+				inclusionTest: func(index, n int) bool { return n%2 != 0 },
+			},
+			want: []int{3, 5, 7, 9},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Filter(tt.args.collection, tt.args.inclusionTest); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Filter() = %v, want %v", got, tt.want)
 			}
 		})
 	}
