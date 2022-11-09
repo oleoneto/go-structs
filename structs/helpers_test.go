@@ -66,7 +66,6 @@ func Test_Map(t *testing.T) {
 			want: []int{2, 4, 6},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Map(tt.args.collection, tt.args.transformFunc); !reflect.DeepEqual(got, tt.want) {
