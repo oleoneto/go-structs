@@ -21,160 +21,20 @@ type Person struct {
 	Contact Contact `json:"contact"`
 }
 
-func Test_IsIn(t *testing.T) {
-	type args struct {
-		value          reflect.Value
-		acceptedValues []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "numeric - 1",
-			args: args{
-				value:          reflect.ValueOf(2),
-				acceptedValues: []string{"2", "3", "5", "7"},
-			},
-			want: true,
-		},
-		{
-			name: "numeric - 2",
-			args: args{
-				value:          reflect.ValueOf(7),
-				acceptedValues: []string{"2", "3", "5", "7"},
-			},
-			want: true,
-		},
-		{
-			name: "numeric - 3",
-			args: args{
-				value:          reflect.ValueOf(0),
-				acceptedValues: []string{"2", "3", "5", "7"},
-			},
-			want: false,
-		},
-		{
-			name: "numeric - 4",
-			args: args{
-				value:          reflect.ValueOf(0),
-				acceptedValues: []string{"2a", "B"},
-			},
-			want: false,
-		},
-		{
-			name: "numeric - 5",
-			args: args{
-				value:          reflect.ValueOf(10.2),
-				acceptedValues: []string{"2a", "B"},
-			},
-			want: false,
-		},
-		{
-			name: "numeric - 6",
-			args: args{
-				value:          reflect.ValueOf([]int{}),
-				acceptedValues: []string{"2", "B"},
-			},
-			want: false,
-		},
-		{
-			name: "string - 1",
-			args: args{
-				value:          reflect.ValueOf("GUEST"),
-				acceptedValues: []string{"ADMIN", "GUEST"},
-			},
-			want: true,
-		},
-		{
-			name: "string - 2",
-			args: args{
-				value:          reflect.ValueOf("WRITER"),
-				acceptedValues: []string{"ADMIN", "GUEST"},
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsIn(tt.args.value, tt.args.acceptedValues); got != tt.want {
-				t.Errorf("IsIn() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_IsUUID(t *testing.T) {
-	tests := []struct {
-		name string
-		arg  string
-		want bool
-	}{
-		{
-			name: "test - 1",
-			arg:  "",
-			want: false,
-		},
-		{
-			name: "test - 2",
-			arg:  "someone-is-cool",
-			want: false,
-		},
-		{
-			name: "test - 3",
-			arg:  " ",
-			want: false,
-		},
-		{
-			name: "test - 4",
-			arg:  "00000000-0000-0000-0000-000000000000",
-			want: true,
-		},
-		{
-			name: "test - 5",
-			arg:  "21f2fa1d-c662-4669-abba-095a2416f5b9",
-			want: true,
-		},
-		{
-			name: "test - 6",
-			arg:  "097e3981-55a2-4f83-a5dd-405e49a80314",
-			want: true,
-		},
-		{
-			name: "test - 7",
-			arg:  "2b852002-f19d-11ec-8ea0-0242ac120002",
-			want: true,
-		},
-		{
-			name: "test - 8",
-			arg:  "2g852002-f19d-11ec-8ea0-0242ac120002",
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsUUID(tt.arg); got != tt.want {
-				t.Errorf("IsUUID() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+type Resource struct {
+	Currency         string   `json:"currency" validate:"currency"`
+	Price            float64  `json:"price" validate:"min=5,max=30"`
+	Group            int      `json:"group" validate:"in=1|3|5|7"`
+	Type             string   `json:"type" validate:"in=USED|NEW"`
+	Code             string   `json:"code" validate:"eq=5"`
+	Quantity         int      `json:"qty" validate:"min=1,max=3"`
+	Rating           float64  `json:"rating" validate:"in=0|1|2|4|5"`
+	Related          []string `json:"related" validate:"uuid"`
+	PublishedAt      string   `json:"published_at" validate:"datetime"`
+	PriceAvailableIn []string `json:"price_available_in" validate:"currency"`
 }
 
 func Test_Validate(t *testing.T) {
-	type Resource struct {
-		Currency         string   `json:"currency" validate:"currency"`
-		Price            float64  `json:"price" validate:"min=5,max=30"`
-		Group            int      `json:"group" validate:"in=1|3|5|7"`
-		Type             string   `json:"type" validate:"in=USED|NEW"`
-		Code             string   `json:"code" validate:"eq=5"`
-		Quantity         int      `json:"qty" validate:"min=1,max=3"`
-		Rating           float64  `json:"rating" validate:"in=0|1|2|4|5"`
-		Related          []string `json:"related" validate:"uuid"`
-		PublishedAt      string   `json:"published_at" validate:"datetime"`
-		PriceAvailableIn []string `json:"price_available_in" validate:"currency"`
-	}
-
 	type S1 struct {
 		C []int `json:"c" validate:"currency"`
 		D []int `json:"d" validate:"datetime"`
@@ -358,11 +218,11 @@ func Test_Validate(t *testing.T) {
 			model:   S1{C: []int{42}, D: []int{42}, E: []int{42}, I: []int{42}, U: []int{42}},
 			options: ValidationOptions{},
 			want: map[string][]string{
-				"c[0]": {"INVALID_DATA_TYPE"},
-				"d[0]": {"INVALID_DATA_TYPE"},
-				"e[0]": {"INVALID_DATA_TYPE"},
+				"c[0]": {"INVALID_TYPE"},
+				"d[0]": {"INVALID_TYPE"},
+				"e[0]": {"INVALID_TYPE"},
 				"i[0]": {"INVALID_VALUE"},
-				"u[0]": {"INVALID_DATA_TYPE"},
+				"u[0]": {"INVALID_TYPE"},
 			},
 		},
 		{
@@ -396,6 +256,236 @@ func Test_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Validate(tt.model, tt.options); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_ValidatePayload(t *testing.T) {
+	type Person struct {
+		UUID    string  `json:"id" validate:"uuid" jsonschema:"required"`
+		Name    string  `json:"name" db:"name" validate:"min=2,max=8"`
+		Contact Contact `json:"contact"`
+	}
+
+	type args struct {
+		data    []byte
+		model   any
+		options ValidationOptions
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want map[string][]string
+	}{
+		{
+			name: "person - 1",
+			args: args{
+				data:    []byte(`{"name": "", "contact": {"emails": []}}`),
+				model:   &Person{},
+				options: ValidationOptions{},
+			},
+			want: map[string][]string{
+				"id":             {"REQUIRED_ATTRIBUTE_MISSING"},
+				"name":           {"INVALID_LENGTH"},
+				"contact.emails": {"INVALID_LENGTH"},
+			},
+		},
+		{
+			name: "person - 2",
+			args: args{
+				data:    []byte(`{"id": "1108129d-1d98-4a21-837a-ae6319f64c73", "name": 1, "contact": {"emails": ["}}`),
+				model:   &Person{},
+				options: ValidationOptions{},
+			},
+
+			want: map[string][]string{
+				"_": {"INVALID_PAYLOAD"},
+			},
+		},
+		{
+			name: "person - 3",
+			args: args{
+				data:    []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": 1, "contact": {"emails": ["leo", "leo@example.org"]}}`),
+				model:   &Person{},
+				options: ValidationOptions{},
+			},
+			want: map[string][]string{
+				"name":              {"INVALID_TYPE"},
+				"contact.emails[0]": {"INVALID_FORMAT"},
+			},
+		},
+		{
+			name: "person - 4",
+			args: args{
+				data:    []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": "Leonardo", "contact": {"emails": ["leo@example.org"]}}`),
+				model:   &Person{},
+				options: ValidationOptions{},
+			},
+			want: map[string][]string{},
+		},
+		{
+			name: "resource - 1",
+			args: args{
+				model:   &Resource{},
+				data:    []byte(`{"currency": "BRL", "price": 14, "group": 7, "type": "NEW", "code": "ABC12", "qty": 2, "rating": 5, "related": ["123", "145"], "published_at": "2020-01-01T00:00:00+01:00", "id": "some-id"}`),
+				options: ValidationOptions{},
+			},
+			want: map[string][]string{
+				"id":         {"ADDITIONAL_PROPERTY"},
+				"related[0]": {"INVALID_FORMAT"},
+				"related[1]": {"INVALID_FORMAT"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidatePayload(tt.args.data, tt.args.model, tt.args.options); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ValidatePayload() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// MARK: Rules
+
+func Test_IsIn(t *testing.T) {
+	type args struct {
+		value          reflect.Value
+		acceptedValues []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "numeric - 1",
+			args: args{
+				value:          reflect.ValueOf(2),
+				acceptedValues: []string{"2", "3", "5", "7"},
+			},
+			want: true,
+		},
+		{
+			name: "numeric - 2",
+			args: args{
+				value:          reflect.ValueOf(7),
+				acceptedValues: []string{"2", "3", "5", "7"},
+			},
+			want: true,
+		},
+		{
+			name: "numeric - 3",
+			args: args{
+				value:          reflect.ValueOf(0),
+				acceptedValues: []string{"2", "3", "5", "7"},
+			},
+			want: false,
+		},
+		{
+			name: "numeric - 4",
+			args: args{
+				value:          reflect.ValueOf(0),
+				acceptedValues: []string{"2a", "B"},
+			},
+			want: false,
+		},
+		{
+			name: "numeric - 5",
+			args: args{
+				value:          reflect.ValueOf(10.2),
+				acceptedValues: []string{"2a", "B"},
+			},
+			want: false,
+		},
+		{
+			name: "numeric - 6",
+			args: args{
+				value:          reflect.ValueOf([]int{}),
+				acceptedValues: []string{"2", "B"},
+			},
+			want: false,
+		},
+		{
+			name: "string - 1",
+			args: args{
+				value:          reflect.ValueOf("GUEST"),
+				acceptedValues: []string{"ADMIN", "GUEST"},
+			},
+			want: true,
+		},
+		{
+			name: "string - 2",
+			args: args{
+				value:          reflect.ValueOf("WRITER"),
+				acceptedValues: []string{"ADMIN", "GUEST"},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsIn(tt.args.value, tt.args.acceptedValues); got != tt.want {
+				t.Errorf("IsIn() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_IsUUID(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+		want bool
+	}{
+		{
+			name: "test - 1",
+			arg:  "",
+			want: false,
+		},
+		{
+			name: "test - 2",
+			arg:  "someone-is-cool",
+			want: false,
+		},
+		{
+			name: "test - 3",
+			arg:  " ",
+			want: false,
+		},
+		{
+			name: "test - 4",
+			arg:  "00000000-0000-0000-0000-000000000000",
+			want: true,
+		},
+		{
+			name: "test - 5",
+			arg:  "21f2fa1d-c662-4669-abba-095a2416f5b9",
+			want: true,
+		},
+		{
+			name: "test - 6",
+			arg:  "097e3981-55a2-4f83-a5dd-405e49a80314",
+			want: true,
+		},
+		{
+			name: "test - 7",
+			arg:  "2b852002-f19d-11ec-8ea0-0242ac120002",
+			want: true,
+		},
+		{
+			name: "test - 8",
+			arg:  "2g852002-f19d-11ec-8ea0-0242ac120002",
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsUUID(tt.arg); got != tt.want {
+				t.Errorf("IsUUID() = %v, want %v", got, tt.want)
 			}
 		})
 	}
