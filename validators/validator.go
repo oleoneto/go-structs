@@ -135,12 +135,11 @@ var Errors = map[string]string{
 	"immutable": "IMMUTABLE_VALUE",
 	"format":    "INVALID_FORMAT",
 	"length":    "INVALID_LENGTH",
-	"type":      "INVALID_DATA_TYPE",
+	"type":      "INVALID_TYPE",
 	"value":     "INVALID_VALUE",
 }
 
 type ValidationOptions struct {
-	Payload   map[string]any
 	Ignore    []string
 	SkipRules []string
 }
@@ -150,11 +149,11 @@ type ValidationOptions struct {
 // Usage:
 //
 //	type Resource struct {
-//		Id string `json:"name" validate:"uuid"`
+//		Id string `json:"id" validate:"uuid"`
 //	}
 //
-//	r := Resource{Name: "abc"}
-//	errs := ValidateAttribute(r) // -> {name: ["INVALID_FORMAT"]}
+//	r := Resource{Id: "abc"}
+//	errs := ValidateAttribute(r) // -> {id: ["INVALID_FORMAT"]}
 func Validate(model any, options ValidationOptions) map[string][]string {
 	validations := make(map[string][]string)
 
@@ -332,6 +331,50 @@ func ValidateAttribute(attribute structs.StructAttribute, options ValidationOpti
 				return TYPE_ERROR
 			}
 		}
+	}
+
+	return validations
+}
+
+// Decodes and validates the provided payload.
+//
+// Usage:
+//
+//	type Resource struct {
+//		Id   string `json:"id" validate:"uuid" jsonschema:"required"`
+//		Name string `json:"name" validate:"min=3" jsonschema:"required"`
+//	}
+//
+//	var r Resource
+//	errs := ValidatePayload([]byte(`{"id": null}`), &r)
+// /*
+// {
+// id: ["INVALID_TYPE"],
+// name: ["REQUIRED_ATTRIBUTE_MISSING"]
+// }
+// */
+func ValidatePayload(data []byte, model any, options ValidationOptions) map[string][]string {
+	decoderErrors := structs.Decode(
+		data,
+		model,
+		structs.DecoderOptions{
+			Rules: []structs.SchemaValidationRule{
+				structs.ADDITIONAL_PROPERTY,
+				structs.INVALID_TYPE,
+				structs.REQUIRED_ATTRIBUTE,
+			},
+		},
+	)
+
+	// NOTE: no need to go any further because the payload is invalid.
+	if _, ok := decoderErrors["_"]; ok {
+		return decoderErrors
+	}
+
+	validations := Validate(model, options)
+
+	for k, v := range decoderErrors {
+		validations[k] = v
 	}
 
 	return validations
