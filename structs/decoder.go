@@ -8,20 +8,37 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-type SchemaValidationRule string
+type (
+	SchemaValidationRule string
 
-type DecoderOptions struct {
-	// Set of rules that should be checked when validation the provided data against the Go struct.
-	Rules []SchemaValidationRule
+	JSONTypeOverride struct {
+		// A string representing the Go struct type.
+		// For example: Google's uuid.UUID type would be UUID.
+		GoType string
 
-	// A function that runs before the decoder starts processing the data.
-	// This could be used for setting/unsetting values in the provided bytes array.
-	BeforeHook func(data []byte, model any) []byte
+		// The JSON representation of the Go type.
+		// For example: number, string, object, array.
+		JSONType string
+	}
 
-	// A function that runs after the decoder is done processing the data.
-	// This could be used for ignoring certain errors or providing custom error messages.
-	AfterHook func(validations map[string][]string) map[string][]string
-}
+	DecoderOptions struct {
+		// Set of rules that should be checked when validation the provided data against the Go struct.
+		Rules []SchemaValidationRule
+
+		// Set of Go types whose JSON representation you which to manually override.
+		// By default, Go structs are treated as JSON objects. However, you may have a
+		// custom type whose JSON representation may simply be a number or a string.
+		JSONOverrides []JSONTypeOverride
+
+		// A function that runs before the decoder starts processing the data.
+		// This could be used for setting/unsetting values in the provided bytes array.
+		BeforeHook func(data []byte, model any) []byte
+
+		// A function that runs after the decoder is done processing the data.
+		// This could be used for ignoring certain errors or providing custom error messages.
+		AfterHook func(validations map[string][]string) map[string][]string
+	}
+)
 
 const (
 	ADDITIONAL_PROPERTY SchemaValidationRule = "additional_property_not_allowed"
@@ -94,6 +111,12 @@ func Decode(data []byte, model any, options DecoderOptions) map[string][]string 
 	reflector.AllowAdditionalProperties = !Contains(options.Rules, ADDITIONAL_PROPERTY)
 
 	schema := reflector.Reflect(model)
+	for _, t := range options.JSONOverrides {
+		if _, ok := schema.Definitions[t.GoType]; ok {
+			schema.Definitions[t.GoType].Type = t.JSONType
+		}
+	}
+
 	decoded, _ := schema.MarshalJSON()
 
 	result, verr := gojsonschema.Validate(
