@@ -139,10 +139,17 @@ var Errors = map[string]string{
 	"value":     "INVALID_VALUE",
 }
 
-type ValidationOptions struct {
-	Ignore    []string
-	SkipRules []string
-}
+type (
+	ValidationOptions struct {
+		Ignore    []string
+		SkipRules []string
+	}
+
+	PayloadValidationOptions struct {
+		ValidationOptions
+		structs.DecoderOptions
+	}
+)
 
 // Validates a struct and its attributes and returns a list of validation errors.
 //
@@ -353,17 +360,11 @@ func ValidateAttribute(attribute structs.StructAttribute, options ValidationOpti
 // name: ["REQUIRED_ATTRIBUTE_MISSING"]
 // }
 // */
-func ValidatePayload(data []byte, model any, options ValidationOptions) map[string][]string {
+func ValidatePayload(data []byte, model any, options PayloadValidationOptions) map[string][]string {
 	decoderErrors := structs.Decode(
 		data,
 		model,
-		structs.DecoderOptions{
-			Rules: []structs.SchemaValidationRule{
-				structs.ADDITIONAL_PROPERTY,
-				structs.INVALID_TYPE,
-				structs.REQUIRED_ATTRIBUTE,
-			},
-		},
+		options.DecoderOptions,
 	)
 
 	// NOTE: no need to go any further because the payload is invalid.
@@ -371,7 +372,7 @@ func ValidatePayload(data []byte, model any, options ValidationOptions) map[stri
 		return decoderErrors
 	}
 
-	validations := Validate(model, options)
+	validations := Validate(model, options.ValidationOptions)
 
 	for k, v := range decoderErrors {
 		validations[k] = v
