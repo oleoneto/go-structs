@@ -17,6 +17,12 @@ func Test_Decode(t *testing.T) {
 		Email string  `json:"email" db:"email"`
 	}
 
+	type Generic struct{}
+
+	type Payment struct {
+		Id Generic `json:"id"`
+	}
+
 	type args struct {
 		data    []byte
 		model   any
@@ -186,6 +192,44 @@ func Test_Decode(t *testing.T) {
 				},
 			},
 			want: map[string][]string{"error": {"CUSTOM_ERROR"}},
+		},
+		{
+			name: "json type override - 1",
+			args: args{
+				data:  []byte(`{"id": 0.002}}`),
+				model: &Payment{},
+				options: DecoderOptions{
+					Rules:         []SchemaValidationRule{INVALID_TYPE, REQUIRED_ATTRIBUTE, ADDITIONAL_PROPERTY},
+					JSONOverrides: []JSONTypeOverride{{GoType: "Generic", JSONType: "string"}},
+				},
+			},
+			want: map[string][]string{
+				"id": {"INVALID_TYPE"},
+			},
+		},
+		{
+			name: "json type override - 2",
+			args: args{
+				data:  []byte(`{"id": 0.002}}`),
+				model: &Payment{},
+				options: DecoderOptions{
+					Rules:         []SchemaValidationRule{INVALID_TYPE, REQUIRED_ATTRIBUTE, ADDITIONAL_PROPERTY},
+					JSONOverrides: []JSONTypeOverride{{GoType: "Generic", JSONType: "number"}},
+				},
+			},
+			want: map[string][]string{},
+		},
+		{
+			name: "json type override - 3",
+			args: args{
+				data:  []byte(`{"id": [0.002]}}`),
+				model: &Payment{},
+				options: DecoderOptions{
+					Rules:         []SchemaValidationRule{INVALID_TYPE, REQUIRED_ATTRIBUTE, ADDITIONAL_PROPERTY},
+					JSONOverrides: []JSONTypeOverride{{GoType: "Generic", JSONType: "array"}},
+				},
+			},
+			want: map[string][]string{},
 		},
 	}
 
