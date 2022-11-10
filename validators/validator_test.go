@@ -3,6 +3,8 @@ package validators
 import (
 	"reflect"
 	"testing"
+
+	"github.com/oleoneto/go-structs/structs"
 )
 
 type Identifiable struct {
@@ -271,7 +273,7 @@ func Test_ValidatePayload(t *testing.T) {
 	type args struct {
 		data    []byte
 		model   any
-		options ValidationOptions
+		options PayloadValidationOptions
 	}
 
 	tests := []struct {
@@ -282,9 +284,17 @@ func Test_ValidatePayload(t *testing.T) {
 		{
 			name: "person - 1",
 			args: args{
-				data:    []byte(`{"name": "", "contact": {"emails": []}}`),
-				model:   &Person{},
-				options: ValidationOptions{},
+				data:  []byte(`{"name": "", "contact": {"emails": []}}`),
+				model: &Person{},
+				options: PayloadValidationOptions{
+					DecoderOptions: structs.DecoderOptions{
+						Rules: []structs.SchemaValidationRule{
+							structs.ADDITIONAL_PROPERTY,
+							structs.INVALID_TYPE,
+							structs.REQUIRED_ATTRIBUTE,
+						},
+					},
+				},
 			},
 			want: map[string][]string{
 				"id":             {"REQUIRED_ATTRIBUTE_MISSING"},
@@ -295,11 +305,18 @@ func Test_ValidatePayload(t *testing.T) {
 		{
 			name: "person - 2",
 			args: args{
-				data:    []byte(`{"id": "1108129d-1d98-4a21-837a-ae6319f64c73", "name": 1, "contact": {"emails": ["}}`),
-				model:   &Person{},
-				options: ValidationOptions{},
+				data:  []byte(`{"id": "1108129d-1d98-4a21-837a-ae6319f64c73", "name": 1, "contact": {"emails": ["}}`),
+				model: &Person{},
+				options: PayloadValidationOptions{
+					DecoderOptions: structs.DecoderOptions{
+						Rules: []structs.SchemaValidationRule{
+							structs.ADDITIONAL_PROPERTY,
+							structs.INVALID_TYPE,
+							structs.REQUIRED_ATTRIBUTE,
+						},
+					},
+				},
 			},
-
 			want: map[string][]string{
 				"_": {"INVALID_PAYLOAD"},
 			},
@@ -307,9 +324,17 @@ func Test_ValidatePayload(t *testing.T) {
 		{
 			name: "person - 3",
 			args: args{
-				data:    []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": 1, "contact": {"emails": ["leo", "leo@example.org"]}}`),
-				model:   &Person{},
-				options: ValidationOptions{},
+				data:  []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": 1, "contact": {"emails": ["leo", "leo@example.org"]}}`),
+				model: &Person{},
+				options: PayloadValidationOptions{
+					DecoderOptions: structs.DecoderOptions{
+						Rules: []structs.SchemaValidationRule{
+							structs.ADDITIONAL_PROPERTY,
+							structs.INVALID_TYPE,
+							structs.REQUIRED_ATTRIBUTE,
+						},
+					},
+				},
 			},
 			want: map[string][]string{
 				"name":              {"INVALID_TYPE"},
@@ -319,18 +344,34 @@ func Test_ValidatePayload(t *testing.T) {
 		{
 			name: "person - 4",
 			args: args{
-				data:    []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": "Leonardo", "contact": {"emails": ["leo@example.org"]}}`),
-				model:   &Person{},
-				options: ValidationOptions{},
+				data:  []byte(`{"id": "2b852002-f19d-11ec-8ea0-0242ac120002", "name": "Leonardo", "contact": {"emails": ["leo@example.org"]}}`),
+				model: &Person{},
+				options: PayloadValidationOptions{
+					DecoderOptions: structs.DecoderOptions{
+						Rules: []structs.SchemaValidationRule{
+							structs.ADDITIONAL_PROPERTY,
+							structs.INVALID_TYPE,
+							structs.REQUIRED_ATTRIBUTE,
+						},
+					},
+				},
 			},
 			want: map[string][]string{},
 		},
 		{
 			name: "resource - 1",
 			args: args{
-				model:   &Resource{},
-				data:    []byte(`{"currency": "BRL", "price": 14, "group": 7, "type": "NEW", "code": "ABC12", "qty": 2, "rating": 5, "related": ["123", "145"], "published_at": "2020-01-01T00:00:00+01:00", "id": "some-id"}`),
-				options: ValidationOptions{},
+				model: &Resource{},
+				data:  []byte(`{"currency": "BRL", "price": 14, "group": 7, "type": "NEW", "code": "ABC12", "qty": 2, "rating": 5, "related": ["123", "145"], "published_at": "2020-01-01T00:00:00+01:00", "id": "some-id"}`),
+				options: PayloadValidationOptions{
+					DecoderOptions: structs.DecoderOptions{
+						Rules: []structs.SchemaValidationRule{
+							structs.ADDITIONAL_PROPERTY,
+							structs.INVALID_TYPE,
+							structs.REQUIRED_ATTRIBUTE,
+						},
+					},
+				},
 			},
 			want: map[string][]string{
 				"id":         {"ADDITIONAL_PROPERTY"},
