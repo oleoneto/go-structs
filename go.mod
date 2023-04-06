@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/text v0.6.0
+	golang.org/x/text v0.9.0
 )
 
 require (
