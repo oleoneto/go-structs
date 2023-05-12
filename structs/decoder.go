@@ -135,8 +135,7 @@ func Decode(data []byte, model any, options DecoderOptions) map[string][]string 
 
 	for _, err := range res {
 		name := jsonAttributeName(err.String())
-		normalizedName := regexp.MustCompile(`\[\d+\]`).ReplaceAllString(name, "")
-		validations[normalizedName] = []string{DecodingErrors[err.Type()]}
+		validations[name] = []string{DecodingErrors[err.Type()]}
 	}
 
 	return afterFunc(validations)
